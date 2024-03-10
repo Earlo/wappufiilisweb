@@ -17,7 +17,18 @@ export async function POST(req: Request) {
   // Parse the JSON body from the request
   const body = await req.json();
   const { year, guild, campus, score } = body;
-
+  // maks sure at least score is provided
+  if (!score) {
+    return NextResponse.json(
+      { message: 'Score is required' },
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
   // Generate a timestamp and a random number for the partition_key
   const timestamp = Math.floor(Date.now() / 1000);
   const rand = Math.floor(Math.random() * 100000);
