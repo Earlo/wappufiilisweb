@@ -1,23 +1,79 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import * as d3 from 'd3';
 import { Parser as HtmlToReactParser } from 'html-to-react';
 import * as jsdom from 'jsdom';
 import { ImageResponse } from 'next/og';
 
-const data = [
-  { date: +new Date('2023-11-11'), value: 100 },
-  { date: +new Date('2023-11-12'), value: 60 },
-  { date: +new Date('2023-11-13'), value: 180 },
-  { date: +new Date('2023-11-14'), value: 20 },
-  { date: +new Date('2023-11-15'), value: 60 },
-  { date: +new Date('2023-11-16'), value: 50 },
-];
+// Initialize DynamoDB Client
+const ddbClient = new DynamoDBClient({
+  region: process.env.AWS_DEFAULT_REGION || 'eu-north-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+const docClient = DynamoDBDocumentClient.from(ddbClient);
+
+async function listAllData() {
+  const TableName =
+    process.env.DYNAMODB_EVENTS_TABLE_NAME || 'FiilisData_staging';
+
+  try {
+    const params = {
+      TableName,
+    };
+
+    const { Items } = await docClient.send(new ScanCommand(params));
+    if (Items && Items.length > 0) {
+      return Items.map((i) => ({
+        date: i.timestamp,
+        value: parseInt(i.score, 10),
+      })).filter((o) => !isNaN(o.value));
+    }
+    throw 'No valid data available for calculation.';
+  } catch (error) {
+    console.error('Error scanning table:', error);
+    throw 'Error calculating average';
+  }
+}
+
+function groupEntriesByDay(
+  entries: { date: number; value: number }[],
+): { date: number; value: number }[] {
+  const averagesPerDayMap = new Map<string, { sum: number; count: number }>();
+
+  // Accumulate values for each day
+  entries.forEach((entry) => {
+    const dateKey = new Date(entry.date * 1000).toISOString().slice(0, 10); // Get YYYY-MM-DD format
+    const existing = averagesPerDayMap.get(dateKey);
+    if (existing) {
+      existing.sum += entry.value;
+      existing.count++;
+    } else {
+      averagesPerDayMap.set(dateKey, { sum: entry.value, count: 1 });
+    }
+  });
+
+  // Calculate averages and format data
+  const averagesPerDayArray = Array.from(averagesPerDayMap.entries()).map(
+    ([dateKey, { sum, count }]) => {
+      return { date: +new Date(dateKey), value: sum / count };
+    },
+  );
+
+  return averagesPerDayArray;
+}
 
 function doThings({
+  data,
   svg,
   width,
   height,
 }: {
+  data: any;
   svg: any;
   width: number;
   height: number;
@@ -26,7 +82,7 @@ function doThings({
   const x = d3
     .scaleTime()
     .domain(
-      d3.extent(data, function (d) {
+      d3.extent(data, function (d: any) {
         return d.date;
       }) as any,
     )
@@ -74,7 +130,6 @@ function doThings({
         }),
     );
 
-  console.log(d3.axisBottom(x).scale().range());
   return {
     xTicks: (d3.axisBottom(x).scale() as any).ticks(),
     xTickTransforms: bottomAxisEls
@@ -102,21 +157,16 @@ export async function GET() {
     .attr('width', 950)
     .attr('height', 550)
     .attr('viewBox', '0 0 1000 600');
-  /*svg
-    .append('line')
-    .attr('x1', 100)
-    .attr('y1', 100)
-    .attr('x2', 200)
-    .attr('y2', 200)
-    .style('stroke', 'rgb(255,0,0)')
-    .style('stroke-width', 2);*/
+
+  const data = groupEntriesByDay(await listAllData());
+  console.log(data);
 
   const { xTicks, xTickTransforms, yTicks, yTickTransforms } = doThings({
+    data,
     svg: svg,
     width: 1000,
     height: 600,
   });
-  //console.log(body.node().innerHTML);
 
   return new ImageResponse(
     (
@@ -148,38 +198,6 @@ export async function GET() {
             </div>
           ))}
         </div>
-        {/*<div
-          style={{
-            width: 50,
-            display: 'flex',
-            flexDirection: 'column-reverse',
-            paddingBottom: 50,
-          }}
-        >
-          {yTicks.map((y: any) => (
-            <div
-              key={y.toString()}
-              style={{
-                flex: 1,
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'flex-end',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                  marginBottom: -12,
-                }}
-              >
-                {y.toString()}
-                <div style={{ width: 4, height: 1, background: 'black' }} />
-              </div>
-            </div>
-          ))}
-              </div>*/}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div
             style={{
@@ -193,34 +211,6 @@ export async function GET() {
               (body.node()! as any).innerHTML,
             )}
           </div>
-          {/*<div style={{ height: 50, display: 'flex' }}>
-            {xTicks.map((x: Date) => (
-              <div
-                key={x.toString()}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-start',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ width: 1, height: 4, background: 'black' }} />
-                  {x.toLocaleDateString('fi-FI', {
-                    day: '2-digit',
-                    month: '2-digit',
-                  })}
-                </div>
-              </div>
-            ))}
-                </div>*/}
           <div style={{ height: 50, position: 'relative', display: 'flex' }}>
             {xTickTransforms.map((tr: any, i: any) => (
               <div
@@ -244,23 +234,6 @@ export async function GET() {
             ))}
           </div>
         </div>
-        {/*<svg
-          width={1000}
-          height={600}
-          viewBox="0 0 1000 600"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <g fill="#444cf7">
-            {data.map((p, i) => (
-              <circle
-                cx={(i / data.length) * 1000}
-                cy={600 - p.y}
-                r="8"
-                key={p.x}
-              />
-            ))}
-          </g>
-            </svg>*/}
       </div>
     ),
     {
