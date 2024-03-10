@@ -17,7 +17,6 @@ export async function POST(req: Request) {
   // Parse the JSON body from the request
   const body = await req.json();
   const { year, guild, campus, score } = body;
-  // maks sure at least score is provided
   if (!score) {
     return NextResponse.json(
       { message: 'Score is required' },
