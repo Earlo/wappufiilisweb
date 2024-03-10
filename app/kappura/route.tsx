@@ -100,7 +100,7 @@ function doThings({
     .scaleLinear()
     .domain([
       0,
-      d3.max(data, function (d) {
+      d3.max(data, function (d: any) {
         return +d.value;
       }) as any,
     ])
