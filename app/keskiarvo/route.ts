@@ -16,37 +16,46 @@ const ddbClient = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
-export async function getAverage(day, guild = null) {
+async function getAverage(day, guild = null) {
   const TableName =
     process.env.DYNAMODB_EVENTS_TABLE_NAME || 'FiilisData_staging';
 
-  const scanParams = {
-    TableName,
+  // Calculate start and end of the day timestamps in seconds
+  const startOfDay = new Date(day + 'T00:00:00Z').getTime() / 1000;
+  const endOfDay = new Date(day + 'T23:59:59Z').getTime() / 1000;
+
+  let filterExpression = '#ts BETWEEN :startOfDay AND :endOfDay';
+  const expressionAttributeNames = { '#ts': 'timestamp' }; // Substitute 'timestamp' with '#ts'
+  const expressionAttributeValues = {
+    ':startOfDay': startOfDay,
+    ':endOfDay': endOfDay,
   };
 
+  if (guild) {
+    // If a guild is specified, add it to the filter expression
+    filterExpression += ' AND guild = :guild';
+    expressionAttributeValues[':guild'] = guild;
+  }
+
   try {
-    const scanResults = await docClient.send(new ScanCommand(scanParams));
+    const params = {
+      TableName,
+      FilterExpression: filterExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+    };
 
-    // Filter items to those matching the day and guild (if specified),
-    // and have a non-null score.
-    const validItems = scanResults.Items.filter(
-      (item) =>
-        item.partition_key.startsWith(day) &&
-        (guild === null || item.guild === guild) &&
-        item.score !== null &&
-        !isNaN(item.score),
-    );
+    const { Items } = await docClient.send(new ScanCommand(params));
+    const scores = Items.filter((item) => item.score !== null)
+      .map((item) => parseInt(item.score, 10))
+      .filter((score) => !isNaN(score));
 
-    if (validItems.length > 0) {
-      const totalScore = validItems.reduce(
-        (acc, item) => acc + parseInt(item.score, 10),
-        0,
-      );
-      const averageScore = totalScore / validItems.length;
-      return averageScore.toFixed(2); // Formats the average score to two decimal places
-    } else {
-      return 'No valid data available for calculation.';
+    if (scores.length > 0) {
+      const averageScore =
+        scores.reduce((acc, score) => acc + score, 0) / scores.length;
+      return averageScore.toFixed(2); // Return the average as a string formatted to two decimal places
     }
+    return 'No valid data available for calculation.';
   } catch (error) {
     console.error('Error scanning table:', error);
     return 'Error calculating average';
@@ -54,8 +63,8 @@ export async function getAverage(day, guild = null) {
 }
 
 export async function GET(req, { params }) {
-  const day = '2024-03-10'; // Adjust according to your application's needs
-  const guild = null; // Or any specific guild name you wish to filter by
+  const day = '2024-03-10'; // Example usage; adjust as needed
+  const guild = null; // Or specify a guild
 
   const averageFiilis = await getAverage(day, guild);
 
