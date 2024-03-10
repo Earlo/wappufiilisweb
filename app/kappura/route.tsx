@@ -1,11 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as d3 from 'd3';
 import { Parser as HtmlToReactParser } from 'html-to-react';
 import * as jsdom from 'jsdom';
 import { ImageResponse } from 'next/og';
-
-export const config = {
-  runtime: 'edge',
-};
 
 const data = [
   { date: +new Date('2023-11-11'), value: 100 },
@@ -31,7 +28,7 @@ function doThings({
     .domain(
       d3.extent(data, function (d) {
         return d.date;
-      }),
+      }) as any,
     )
     .range([0, width])
     .nice();
@@ -49,7 +46,7 @@ function doThings({
       0,
       d3.max(data, function (d) {
         return +d.value;
-      }),
+      }) as any,
     ])
     .range([height, 0]);
   const leftAxisEls = svg
@@ -69,26 +66,26 @@ function doThings({
       'd',
       d3
         .line()
-        .x(function (d) {
+        .x(function (d: any) {
           return x(d.date);
         })
-        .y(function (d) {
+        .y(function (d: any) {
           return y(d.value);
         }),
     );
 
   console.log(d3.axisBottom(x).scale().range());
   return {
-    xTicks: d3.axisBottom(x).scale().ticks(),
+    xTicks: (d3.axisBottom(x).scale() as any).ticks(),
     xTickTransforms: bottomAxisEls
       .selectAll('.tick')
       .nodes()
-      .map((node) => node.getAttribute('transform')),
-    yTicks: d3.axisLeft(y).scale().ticks(),
+      .map((node: any) => node.getAttribute('transform')),
+    yTicks: (d3.axisLeft(y).scale() as any).ticks(),
     yTickTransforms: leftAxisEls
       .selectAll('.tick')
       .nodes()
-      .map((node) => node.getAttribute('transform')),
+      .map((node: any) => node.getAttribute('transform')),
   };
 }
 
@@ -119,7 +116,7 @@ export async function GET() {
     width: 1000,
     height: 600,
   });
-  console.log(body.node().innerHTML);
+  //console.log(body.node().innerHTML);
 
   return new ImageResponse(
     (
@@ -133,7 +130,7 @@ export async function GET() {
         }}
       >
         <div style={{ width: 50, position: 'relative', display: 'flex' }}>
-          {yTickTransforms.map((tr, i) => (
+          {yTickTransforms.map((tr: any, i: any) => (
             <div
               key={i}
               style={{
@@ -143,7 +140,7 @@ export async function GET() {
                 right: 0,
                 transform: tr.replace(
                   /(-?\d*\.?\d+)/g,
-                  (match, p1) => `${(parseFloat(p1) / 600) * 550}px`,
+                  (_match: any, p1: any) => `${(parseFloat(p1) / 600) * 550}px`,
                 ),
               }}
             >
@@ -192,7 +189,9 @@ export async function GET() {
               alignItems: 'center',
             }}
           >
-            {new HtmlToReactParser().parse(body.node().innerHTML)}
+            {new (HtmlToReactParser as any)().parse(
+              (body.node()! as any).innerHTML,
+            )}
           </div>
           {/*<div style={{ height: 50, display: 'flex' }}>
             {xTicks.map((x: Date) => (
@@ -223,7 +222,7 @@ export async function GET() {
             ))}
                 </div>*/}
           <div style={{ height: 50, position: 'relative', display: 'flex' }}>
-            {xTickTransforms.map((tr, i) => (
+            {xTickTransforms.map((tr: any, i: any) => (
               <div
                 key={i}
                 style={{
@@ -232,7 +231,8 @@ export async function GET() {
                   marginLeft: '-20px',
                   transform: tr.replace(
                     /(-?\d*\.?\d+)/g,
-                    (match, p1) => `${(parseFloat(p1) / 1000) * 950}px`,
+                    (_match: any, p1: any) =>
+                      `${(parseFloat(p1) / 1000) * 950}px`,
                   ),
                 }}
               >
