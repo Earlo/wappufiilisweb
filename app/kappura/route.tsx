@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand, ScanCommandInput } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  ScanCommand,
+  ScanCommandInput,
+} from '@aws-sdk/lib-dynamodb';
 import * as d3 from 'd3';
 import { Parser as HtmlToReactParser } from 'html-to-react';
 import * as jsdom from 'jsdom';
@@ -22,13 +26,10 @@ async function listAllData() {
     process.env.DYNAMODB_EVENTS_TABLE_NAME || 'FiilisData_staging';
 
   try {
-
     const now = new Date();
     const dayInS = 60 * 60 * 24;
     const start = now.getTime() / 1000 - 30 * dayInS;
     const end = now.getTime() / 1000;
-
-    
 
     console.log('start', start);
     console.log('end', end);
@@ -36,14 +37,14 @@ async function listAllData() {
     // Set params to fetch only the last 30 days of data
     const params: ScanCommandInput = {
       TableName,
-      FilterExpression: "#timestamp <= :end AND #timestamp >= :start",
+      FilterExpression: '#timestamp <= :end AND #timestamp >= :start',
       ExpressionAttributeNames: {
-          "#timestamp": "timestamp", // Replace 'timestamp' with your actual timestamp attribute name
+        '#timestamp': 'timestamp', // Replace 'timestamp' with your actual timestamp attribute name
       },
       ExpressionAttributeValues: {
-          ":end": end,
-          ":start": start,
-      }
+        ':end': end,
+        ':start': start,
+      },
     };
 
     const { Items } = await docClient.send(new ScanCommand(params));
