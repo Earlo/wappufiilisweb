@@ -181,8 +181,7 @@ export async function GET() {
     .attr('viewBox', '0 0 1000 600');
 
   const entries = await listAllData();
-  const data = groupEntriesByDay(entries);
-
+  const data = groupEntriesByDay(entries).sort((a, b) => a.date - b.date);
   const { xTicks, xTickTransforms, yTicks, yTickTransforms } = doThings({
     data,
     svg: svg,
