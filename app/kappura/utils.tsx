@@ -20,7 +20,15 @@ const ddbClient = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
-async function listAllData(tableName: string, primaryKey?: string) {
+async function listAllData(
+  tableName: string,
+  primaryKey?: string,
+): Promise<
+  {
+    date: number;
+    value: number;
+  }[]
+> {
   const TableName = tableName;
 
   try {
