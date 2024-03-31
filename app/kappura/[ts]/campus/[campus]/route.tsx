@@ -28,7 +28,9 @@ const docClient = DynamoDBDocumentClient.from(ddbClient);
 async function listAllData(params: Partial<Props['params']>) {
   const { campus } = params;
 
-  const TableName = process.env.DYNAMODB_EVENTS_PER_GUILD_TABLE_NAME;
+  const TableName =
+    process.env.DYNAMODB_EVENTS_PER_GUILD_TABLE_NAME ||
+    'FiilisData_PerGuild_staging';
 
   try {
     const now = new Date();
